@@ -3,52 +3,33 @@ import sqlite3
 import pandas as pd
 import urllib.parse
 
-# ==========================================
-# 1. CONFIGURATION DU RESTAURANT
-# ==========================================
-st.set_page_config(
-    page_title="Menu Express Mboro", 
-    page_icon="🥘", 
-    layout="wide", 
-    initial_sidebar_state="collapsed" # Menu caché par défaut (style mobile)
-)
+# --- 1. CONFIGURATION ---
+st.set_page_config(page_title="Menu Express Mboro", page_icon="🥘", layout="wide", initial_sidebar_state="collapsed")
 
-# 🔴 TES NUMÉROS (À MODIFIER SI BESOIN)
-NUMERO_WHATSAPP = "221778615900"     # Pour recevoir les commandes
-NUMERO_MARCHAND_WAVE = "221778615900" # Pour le lien de paiement Wave
+NUMERO_WHATSAPP = "221778615900"
+NUMERO_MARCHAND_WAVE = "221778615900"
 
-# MOT DE PASSE ADMIN
 try:
     ADMIN_PASSWORD = st.secrets["ADMIN_PASSWORD"]
 except:
-    ADMIN_PASSWORD = "admin" # Mot de passe par défaut si non configuré sur Streamlit Cloud
+    ADMIN_PASSWORD = "admin"
 
-# ==========================================
-# 2. BASE DE DONNÉES (SÉCURISÉE)
-# ==========================================
+# --- 2. BASE DE DONNÉES ---
 def get_connection():
-    # On utilise la v4 pour être sûr de repartir sur une base propre sans erreurs
-    return sqlite3.connect('menu_express_v4.db', check_same_thread=False)
+    return sqlite3.connect('menu_express_v_final.db', check_same_thread=False)
 
 def init_db():
     conn = get_connection()
     c = conn.cursor()
-    # Table pour les plats
-    c.execute('''CREATE TABLE IF NOT EXISTS menu 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, prix REAL, img TEXT)''')
-    # Table pour l'historique des commandes
-    c.execute('''CREATE TABLE IF NOT EXISTS commandes 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, articles TEXT, total REAL, 
-                  paiement TEXT, detail TEXT, date DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute('CREATE TABLE IF NOT EXISTS menu (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, prix REAL, img TEXT)')
+    c.execute('CREATE TABLE IF NOT EXISTS commandes (id INTEGER PRIMARY KEY AUTOINCREMENT, articles TEXT, total REAL, paiement TEXT, detail TEXT, date DATETIME DEFAULT CURRENT_TIMESTAMP)')
     conn.commit()
 
 init_db()
 
-# ==========================================
-# 3. GESTION DU PANIER (INTELLIGENT)
-# ==========================================
+# --- 3. SESSION STATE ---
 if 'cart' not in st.session_state:
-    st.session_state.cart = {} # Utilisation d'un dictionnaire pour gérer les quantités sans bug
+    st.session_state.cart = {}
 
 def add_to_cart(item_id, nom, prix):
     item_id = str(item_id)
@@ -56,180 +37,108 @@ def add_to_cart(item_id, nom, prix):
         st.session_state.cart[item_id]['qty'] += 1
     else:
         st.session_state.cart[item_id] = {'nom': nom, 'prix': prix, 'qty': 1}
-    st.toast(f"✅ {nom} ajouté au panier !")
+    st.toast(f"✅ {nom} ajouté !")
 
-# ==========================================
-# 4. DESIGN & STYLE CSS
-# ==========================================
+# --- 4. STYLE CSS ---
 st.markdown("""
     <style>
     .stApp { background-color: #0c0c0c; color: white; }
-    .plat-card { background:#1a1a1a; border-radius:15px; border: 1px solid #333; margin-bottom:20px; overflow: hidden; }
-    .btn-whatsapp { display: block; width: 100%; background-color: #25D366; color: white !important; text-align: center; padding: 15px; border-radius: 12px; font-weight: bold; text-decoration: none; margin-top: 20px;}
-    .pay-btn-wave { display: block; width: 100%; background-color: #0096ff; color: white !important; text-align: center; padding: 15px; border-radius: 12px; font-weight: bold; text-decoration: none; margin: 10px 0; }
-    .pay-btn-om { display: block; width: 100%; background-color: #ff6600; color: white !important; text-align: center; padding: 15px; border-radius: 12px; font-weight: bold; text-decoration: none; margin: 10px 0; }
+    .btn-whatsapp { display: block; width: 100%; background-color: #25D366; color: white !important; text-align: center; padding: 15px; border-radius: 12px; font-weight: bold; text-decoration: none; margin-top: 10px;}
+    .pay-btn-wave { display: block; width: 100%; background-color: #0096ff; color: white !important; text-align: center; padding: 15px; border-radius: 10px; font-weight: bold; text-decoration: none; }
+    .pay-btn-om { display: block; width: 100%; background-color: #ff6600; color: white !important; text-align: center; padding: 15px; border-radius: 10px; font-weight: bold; text-decoration: none; }
     </style>
     """, unsafe_allow_html=True)
 
-# ==========================================
-# 5. NAVIGATION LATÉRALE
-# ==========================================
-# Calcul du nombre d'articles dans le panier
+# --- 5. NAVIGATION ---
 nb_articles = sum(item['qty'] for item in st.session_state.cart.values())
-
 with st.sidebar:
-    st.title("🍔 Menu Express")
-    page = st.radio(
-        "Navigation", 
-        ["Accueil", "La Carte", f"🛒 Mon Panier ({nb_articles})", "🔐 Admin"]
-    )
-    st.write("---")
-    st.write("📞 Service Client : 77 861 59 00")
-
-# ==========================================
-# 6. PAGES DE L'APPLICATION
-# ==========================================
+    st.title("Menu Express")
+    page = st.radio("Aller vers :", ["Accueil", "La Carte", "Réserver", f"Panier ({nb_articles})", "Admin"])
 
 # --- PAGE : ACCUEIL ---
 if page == "Accueil":
-    try:
-        st.image("https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070", use_container_width=True)
-    except:
-        pass
-    st.markdown("<h1 style='text-align: center; color: #d4af37;'>Menu Express Mboro</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Votre fast-food et restaurant digital. Commandez en un clic !</p>", unsafe_allow_html=True)
+    st.image("https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=2000", use_container_width=True)
+    st.markdown("<h1 style='text-align: center;'>Bienvenue chez Menu Express</h1>", unsafe_allow_html=True)
 
 # --- PAGE : LA CARTE ---
 elif page == "La Carte":
-    st.header("🍴 Notre Menu")
-    df_menu = pd.read_sql('SELECT * FROM menu', get_connection())
-    
-    if df_menu.empty:
-        st.info("Le menu est en cours de préparation. Revenez vite !")
+    st.header("🍴 Notre Carte")
+    df = pd.read_sql('SELECT * FROM menu', get_connection())
+    if df.empty:
+        st.info("Le menu est vide.")
     else:
-        for _, row in df_menu.iterrows():
-            col_img, col_txt = st.columns([1, 2])
-            with col_img:
-                img_url = row['img'] if row['img'] else "https://via.placeholder.com/150?text=Plat"
-                try:
-                    st.image(img_url, use_container_width=True)
-                except:
-                    st.image("https://via.placeholder.com/150?text=Image+Indisponible", use_container_width=True)
-            with col_txt:
+        for _, row in df.iterrows():
+            c1, c2 = st.columns([1, 2])
+            with c1: st.image(row['img'] if row['img'] else "https://via.placeholder.com/150")
+            with c2:
                 st.subheader(row['nom'])
-                st.markdown(f"<h3 style='color: #d4af37; margin-top: -10px;'>{int(row['prix'])} FCFA</h3>", unsafe_allow_html=True)
-                st.button(f"Ajouter au panier", key=f"btn_{row['id']}", 
-                          on_click=add_to_cart, args=(row['id'], row['nom'], row['prix']), use_container_width=True)
+                st.write(f"**{int(row['prix'])} FCFA**")
+                st.button(f"Ajouter au panier", key=f"btn_{row['id']}", on_click=add_to_cart, args=(row['id'], row['nom'], row['prix']), use_container_width=True)
             st.divider()
 
-# --- PAGE : PANIER & PAIEMENT ---
+# --- PAGE : RÉSERVER (CORRIGÉ) ---
+elif page == "Réserver":
+    st.header("📅 Réserver une table")
+    with st.form("form_res"):
+        nom = st.text_input("Votre Nom")
+        date = st.date_input("Date")
+        heure = st.time_input("Heure")
+        pers = st.number_input("Nombre de personnes", 1, 10, 2)
+        if st.form_submit_button("Vérifier la disponibilité"):
+            msg = f"📝 *RÉSERVATION*\n👤 Nom: {nom}\n📅 Date: {date}\n⏰ Heure: {heure}\n👥 Pers: {pers}"
+            link = f"https://wa.me/{NUMERO_WHATSAPP}?text={urllib.parse.quote(msg)}"
+            st.markdown(f'<a href="{link}" target="_blank" class="btn-whatsapp">✅ CONFIRMER SUR WHATSAPP</a>', unsafe_allow_html=True)
+
+# --- PAGE : PANIER ---
 elif "Panier" in page:
-    st.header("🛒 Votre Commande")
-    
+    st.header("🛒 Votre Panier")
     if not st.session_state.cart:
-        st.info("Votre panier est vide pour le moment.")
+        st.info("Panier vide.")
     else:
-        total = 0
-        recap_commande = ""
+        total = sum(v['prix'] * v['qty'] for v in st.session_state.cart.values())
+        txt_commande = "".join([f"- {v['nom']} (x{v['qty']})\n" for v in st.session_state.cart.values()])
+        for k, v in list(st.session_state.cart.items()):
+            st.write(f"**{v['nom']}** x{v['qty']} = {int(v['prix']*v['qty'])} F")
         
-        # Affichage des articles
-        for item_id, details in list(st.session_state.cart.items()):
-            subtotal = details['prix'] * details['qty']
-            total += subtotal
-            recap_commande += f"- {details['nom']} (x{details['qty']})\n"
-            
-            c1, c2, c3 = st.columns([3, 1, 1])
-            c1.write(f"**{details['nom']}**")
-            c2.write(f"x{details['qty']}")
-            if c3.button("🗑️", key=f"del_{item_id}"):
-                del st.session_state.cart[item_id]
-                st.rerun()
+        st.markdown(f"### Total : {int(total)} FCFA")
+        methode = st.radio("Paiement", ["Wave", "Orange Money", "Espèces"])
+        adresse = st.text_input("Adresse / Table")
         
-        st.markdown(f"<h2 style='text-align: right; color: #d4af37;'>Total : {int(total)} FCFA</h2>", unsafe_allow_html=True)
-        st.divider()
-        
-        # Logistique et Paiement
-        st.subheader("📍 Informations de Livraison")
-        details_livraison = st.text_input("Votre adresse de livraison ou N° de table :", placeholder="Ex: Quartier Escale, Maison Diop...")
-        
-        st.subheader("💳 Mode de Paiement")
-        pay_method = st.radio("Choisissez comment payer :", ["Wave", "Orange Money", "Espèces à la livraison"], horizontal=True)
+        if methode == "Wave":
+            st.markdown(f'<a href="https://wave.com/pay/{NUMERO_MARCHAND_WAVE}" target="_blank" class="pay-btn-wave">📱 PAYER {int(total)} F PAR WAVE</a>', unsafe_allow_html=True)
+        elif methode == "Orange Money":
+            st.markdown(f'<a href="tel:#144#39#" class="pay-btn-om">📱 PAYER {int(total)} F PAR OM</a>', unsafe_allow_html=True)
 
-        # Affichage des liens dynamiques selon le choix
-        if pay_method == "Wave":
-            lien_wave = f"https://wave.com/pay/{NUMERO_MARCHAND_WAVE}"
-            st.markdown(f"""
-                <div style="background:#f0f9ff; padding:20px; border-radius:15px; text-align:center; margin-top: 10px;">
-                    <p style="color: black;">Appuyez sur le bouton pour ouvrir Wave et payer <b>{int(total)} F</b></p>
-                    <a href="{lien_wave}" target="_blank" class="pay-btn-wave">📱 PAYER DIRECTEMENT AVEC WAVE</a>
-                    <p style="font-size:0.8rem; color:#666; margin-top:10px;">Une fois le paiement fait, validez votre commande ci-dessous.</p>
-                </div>
-            """, unsafe_allow_html=True)
-
-        elif pay_method == "Orange Money":
-            st.markdown(f"""
-                <div style="background:#fff5ee; padding:20px; border-radius:15px; text-align:center; margin-top: 10px;">
-                    <p style="color: black;">Appuyez sur le bouton pour ouvrir votre clavier téléphonique</p>
-                    <a href="tel:#144#39#" class="pay-btn-om">📱 PAYER AVEC ORANGE MONEY</a>
-                    <p style="font-size:0.8rem; color:#666; margin-top:10px;">Composez le code pour envoyer <b>{int(total)} F</b>, puis validez ci-dessous.</p>
-                </div>
-            """, unsafe_allow_html=True)
-
-        # Bouton final
-        st.write("---")
-        if st.button("🚀 VALIDER MA COMMANDE", use_container_width=True):
-            if not details_livraison:
-                st.error("⚠️ Veuillez entrer votre adresse de livraison ou votre numéro de table.")
+        if st.button("🚀 VALIDER LA COMMANDE"):
+            if not adresse: st.error("Lieu manquant.")
             else:
-                # Sauvegarde dans la base de données
-                conn = get_connection()
-                conn.cursor().execute(
-                    'INSERT INTO commandes (articles, total, paiement, detail) VALUES (?,?,?,?)', 
-                    (recap_commande, total, pay_method, details_livraison)
-                )
-                conn.commit()
-                
-                # Génération du lien WhatsApp
-                msg_whatsapp = f"🥘 *NOUVELLE COMMANDE - MENU EXPRESS*\n\n*Plats :*\n{recap_commande}\n💰 *TOTAL :* {int(total)} FCFA\n💳 *PAIEMENT :* {pay_method}\n📍 *ADRESSE :* {details_livraison}"
-                lien_whatsapp = f"https://wa.me/{NUMERO_WHATSAPP}?text={urllib.parse.quote(msg_whatsapp)}"
-                
-                st.success("Commande enregistrée ! Appuyez sur le bouton vert pour nous l'envoyer.")
-                st.markdown(f'<a href="{lien_whatsapp}" target="_blank" class="btn-whatsapp">📲 ENVOYER LE REÇU SUR WHATSAPP</a>', unsafe_allow_html=True)
+                get_connection().cursor().execute('INSERT INTO commandes (articles, total, paiement, detail) VALUES (?,?,?,?)', (txt_commande, total, methode, adresse)).connection.commit()
+                msg = f"🥘 *COMMANDE*\n{txt_commande}💰 TOTAL: {int(total)} F\n💳 PAIEMENT: {methode}\n📍 LIEU: {adresse}"
+                link = f"https://wa.me/{NUMERO_WHATSAPP}?text={urllib.parse.quote(msg)}"
+                st.markdown(f'<a href="{link}" target="_blank" class="btn-whatsapp">📲 ENVOYER SUR WHATSAPP</a>', unsafe_allow_html=True)
 
-# --- PAGE : ADMIN ---
+# --- PAGE : ADMIN (CORRIGÉ) ---
 elif page == "Admin":
-    st.header("🔐 Espace Gérant")
+    st.header("🔐 Administration")
     if st.text_input("Code Secret", type="password") == ADMIN_PASSWORD:
-        st.success("Accès autorisé")
+        tab1, tab2, tab3 = st.tabs(["➕ Ajouter", "📋 Menu actuel", "📦 Commandes"])
         
-        tab_ajout, tab_menu, tab_histo = st.tabs(["➕ Ajouter Plat", "📋 Gérer le Menu", "📦 Commandes"])
+        with tab1:
+            with st.form("add"):
+                n = st.text_input("Nom"); p = st.number_input("Prix", 0); i = st.text_input("Lien Image URL")
+                if st.form_submit_button("Ajouter"):
+                    get_connection().cursor().execute('INSERT INTO menu (nom, prix, img) VALUES (?,?,?)', (n,p,i)).connection.commit()
+                    st.success("Plat ajouté !"); st.rerun()
         
-        with tab_ajout:
-            with st.form("add_form", clear_on_submit=True):
-                nom_plat = st.text_input("Nom du plat")
-                prix_plat = st.number_input("Prix (FCFA)", step=500, min_value=0)
-                img_plat = st.text_input("Lien de l'image (URL Google Images/Unsplash)")
-                
-                if st.form_submit_button("Enregistrer le plat"):
-                    conn = get_connection()
-                    conn.cursor().execute('INSERT INTO menu (nom, prix, img) VALUES (?,?,?)', (nom_plat, prix_plat, img_plat))
-                    conn.commit()
-                    st.success(f"{nom_plat} ajouté avec succès !")
-                    st.rerun()
-                    
-        with tab_menu:
+        with tab2:
             df_m = pd.read_sql('SELECT * FROM menu', get_connection())
             for _, r in df_m.iterrows():
-                c1, c2, c3 = st.columns([1, 3, 1])
-                c2.write(f"**{r['nom']}** - {int(r['prix'])} F")
-                if c3.button("🗑️ Supprimer", key=f"del_plat_{r['id']}"):
-                    conn = get_connection()
-                    conn.cursor().execute('DELETE FROM menu WHERE id=?', (r['id'],))
-                    conn.commit()
+                c1, c2 = st.columns([4, 1])
+                c1.write(f"**{r['nom']}** - {int(r['prix'])} F")
+                if c2.button("🗑️", key=f"del_{r['id']}"):
+                    get_connection().cursor().execute('DELETE FROM menu WHERE id=?', (r['id'],)).connection.commit()
                     st.rerun()
-                    
-        with tab_histo:
-            if st.button("🔄 Actualiser les commandes"):
-                st.rerun()
+        
+        with tab3:
             df_c = pd.read_sql('SELECT * FROM commandes ORDER BY id DESC', get_connection())
-            st.dataframe(df_c, use_container_width=True)
+            st.dataframe(df_c)
