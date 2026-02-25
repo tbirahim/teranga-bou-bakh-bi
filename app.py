@@ -3,12 +3,12 @@ import sqlite3
 import pandas as pd
 import urllib.parse
 
-# ==============================
+# ==========================================
 # CONFIGURATION
-# ==============================
+# ==========================================
 st.set_page_config(
     page_title="Teranga Gourmet Mboro",
-    page_icon="🥘",
+    page_icon="🍽️",
     layout="wide"
 )
 
@@ -20,11 +20,11 @@ except:
     st.error("Mot de passe admin non configuré dans secrets.toml")
     st.stop()
 
-# ==============================
-# BASE DE DONNÉES
-# ==============================
+# ==========================================
+# DATABASE
+# ==========================================
 def get_connection():
-    return sqlite3.connect("menu_express_v3.db")
+    return sqlite3.connect("restaurant_v4.db")
 
 def init_db():
     conn = get_connection()
@@ -57,9 +57,9 @@ def init_db():
 
 init_db()
 
-# ==============================
+# ==========================================
 # SESSION
-# ==============================
+# ==========================================
 if "cart" not in st.session_state:
     st.session_state.cart = {}
 
@@ -71,41 +71,46 @@ def add_to_cart(item_id, nom, prix):
     if item_id in st.session_state.cart:
         st.session_state.cart[item_id]["qty"] += 1
     else:
-        st.session_state.cart[item_id] = {
-            "nom": nom,
-            "prix": prix,
-            "qty": 1
-        }
+        st.session_state.cart[item_id] = {"nom": nom, "prix": prix, "qty": 1}
     st.toast(f"{nom} ajouté au panier")
 
-# ==============================
-# STYLE
-# ==============================
+# ==========================================
+# STYLE GLOBAL
+# ==========================================
 st.markdown("""
 <style>
 .stApp {
     background: linear-gradient(135deg,#0f0f0f,#1c1c1c);
     color: white;
 }
-.btn-whatsapp {
-    display:block;
-    width:100%;
-    background:#25D366;
-    color:white!important;
+.hero {
     text-align:center;
-    padding:15px;
-    border-radius:12px;
+    padding:60px 20px;
+}
+.hero h1 {
+    font-size:48px;
+    color:#d4af37;
+}
+.hero p {
+    font-size:20px;
+}
+.primary-btn {
+    background:#d4af37;
+    color:black!important;
+    padding:15px 30px;
+    border-radius:10px;
     font-weight:bold;
     text-decoration:none;
+}
+.section {
+    padding:40px 0;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ==============================
-# NAVIGATION
-# ==============================
-nb_articles = sum(item["qty"] for item in st.session_state.cart.values())
-
+# ==========================================
+# SIDEBAR
+# ==========================================
 with st.sidebar:
     page = st.radio(
         "Navigation",
@@ -114,17 +119,55 @@ with st.sidebar:
     )
     st.session_state.page = page
 
-# ==============================
-# ACCUEIL
-# ==============================
+# ==========================================
+# ACCUEIL PREMIUM
+# ==========================================
 if page == "Accueil":
-    st.title("🍽️ Teranga Gourmet Mboro")
-    st.write("Cuisine locale & internationale – Sur place & Livraison")
 
-# ==============================
+    st.image(
+        "https://images.unsplash.com/photo-1555992336-03a23c9f8a5c",
+        use_container_width=True
+    )
+
+    st.markdown("""
+    <div class="hero">
+        <h1>Teranga Gourmet Mboro</h1>
+        <p>Saveurs authentiques • Service rapide • Livraison fiable</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if st.button("🍽️ Commander Maintenant", use_container_width=True):
+        st.session_state.page = "La Carte"
+        st.rerun()
+
+    st.divider()
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.subheader("🍲 Cuisine de qualité")
+        st.write("Des plats préparés avec passion et ingrédients frais.")
+
+    with col2:
+        st.subheader("🚚 Livraison rapide")
+        st.write("Commandez en ligne et recevez chez vous rapidement.")
+
+    with col3:
+        st.subheader("🏪 Service sur place")
+        st.write("Installez-vous et profitez d’un service professionnel.")
+
+    st.divider()
+
+    st.subheader("📍 Informations")
+    st.write("📌 Mboro, Sénégal")
+    st.write("🕒 Ouvert tous les jours : 10h - 23h")
+    st.write(f"📞 WhatsApp : {NUMERO_WHATSAPP}")
+
+# ==========================================
 # LA CARTE
-# ==============================
+# ==========================================
 elif page == "La Carte":
+
     st.header("📋 Notre Menu")
 
     conn = get_connection()
@@ -137,7 +180,10 @@ elif page == "La Carte":
         for _, row in df.iterrows():
             col1, col2 = st.columns([1,2])
             with col1:
-                st.image(row["img"] if row["img"] else "https://via.placeholder.com/150", use_container_width=True)
+                st.image(
+                    row["img"] if row["img"] else "https://via.placeholder.com/150",
+                    use_container_width=True
+                )
             with col2:
                 st.subheader(row["nom"])
                 st.markdown(f"### {int(row['prix'])} FCFA")
@@ -149,10 +195,11 @@ elif page == "La Carte":
                 )
             st.divider()
 
-# ==============================
+# ==========================================
 # PANIER
-# ==============================
+# ==========================================
 elif page == "Panier":
+
     st.header("🛒 Votre Panier")
 
     if not st.session_state.cart:
@@ -197,7 +244,7 @@ elif page == "Panier":
 
         if st.button("🚀 Valider la commande"):
             if not detail_lieu:
-                st.error("Complétez les informations de réception.")
+                st.error("Complétez les informations.")
             else:
                 conn = get_connection()
                 c = conn.cursor()
@@ -223,69 +270,25 @@ elif page == "Panier":
                 link = f"https://wa.me/{NUMERO_WHATSAPP}?text={urllib.parse.quote(msg)}"
 
                 st.markdown(
-                    f'<a href="{link}" target="_blank" class="btn-whatsapp">📲 Envoyer sur WhatsApp</a>',
+                    f'<a href="{link}" target="_blank" class="primary-btn">📲 Envoyer sur WhatsApp</a>',
                     unsafe_allow_html=True
                 )
 
-# ==============================
+# ==========================================
 # ADMIN
-# ==============================
+# ==========================================
 elif page == "Admin":
+
     st.header("🔐 Administration")
     code = st.text_input("Mot de passe", type="password")
 
     if code == ADMIN_PASSWORD:
 
-        tab1, tab2 = st.tabs(["📋 Menu", "📦 Commandes"])
+        conn = get_connection()
+        df = pd.read_sql("SELECT * FROM commandes ORDER BY id DESC", conn)
+        conn.close()
 
-        # MENU
-        with tab1:
-            st.subheader("Ajouter un plat")
-            nom = st.text_input("Nom du plat")
-            prix = st.number_input("Prix", step=100)
-            img = st.text_input("URL Image")
-
-            if st.button("Ajouter"):
-                conn = get_connection()
-                c = conn.cursor()
-                c.execute("INSERT INTO menu (nom,prix,img) VALUES (?,?,?)",(nom,prix,img))
-                conn.commit()
-                conn.close()
-                st.success("Plat ajouté")
-                st.rerun()
-
-        # COMMANDES
-        with tab2:
-            conn = get_connection()
-            df = pd.read_sql("SELECT * FROM commandes ORDER BY id DESC", conn)
-            conn.close()
-
-            if df.empty:
-                st.info("Aucune commande.")
-            else:
-                st.metric("💰 Total ventes", f"{int(df['total'].sum())} FCFA")
-                st.metric("📦 Nombre commandes", len(df))
-                st.dataframe(df, use_container_width=True)
-
-                st.subheader("Modifier statut")
-
-                for _, row in df.iterrows():
-                    col1, col2 = st.columns([3,2])
-                    col1.write(f"Commande #{row['id']} - {row['statut']}")
-                    new_status = col2.selectbox(
-                        "Statut",
-                        ["En préparation", "Prête", "Livrée"],
-                        index=["En préparation", "Prête", "Livrée"].index(row["statut"]),
-                        key=f"status{row['id']}"
-                    )
-
-                    if new_status != row["statut"]:
-                        conn = get_connection()
-                        c = conn.cursor()
-                        c.execute(
-                            "UPDATE commandes SET statut=? WHERE id=?",
-                            (new_status,row["id"])
-                        )
-                        conn.commit()
-                        conn.close()
-                        st.rerun()
+        if not df.empty:
+            st.metric("💰 Total ventes", f"{int(df['total'].sum())} FCFA")
+            st.metric("📦 Nombre commandes", len(df))
+            st.dataframe(df, use_container_width=True)
