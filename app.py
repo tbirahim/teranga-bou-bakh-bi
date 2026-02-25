@@ -63,9 +63,6 @@ init_db()
 if "cart" not in st.session_state:
     st.session_state.cart = {}
 
-if "page" not in st.session_state:
-    st.session_state.page = "Accueil"
-
 def add_to_cart(item_id, nom, prix):
     item_id = str(item_id)
     if item_id in st.session_state.cart:
@@ -75,7 +72,7 @@ def add_to_cart(item_id, nom, prix):
     st.toast(f"{nom} ajouté au panier")
 
 # ==========================================
-# STYLE GLOBAL
+# STYLE
 # ==========================================
 st.markdown("""
 <style>
@@ -91,36 +88,28 @@ st.markdown("""
     font-size:48px;
     color:#d4af37;
 }
-.hero p {
-    font-size:20px;
-}
 .primary-btn {
     background:#d4af37;
     color:black!important;
     padding:15px 30px;
     border-radius:10px;
     font-weight:bold;
-    text-decoration:none;
-}
-.section {
-    padding:40px 0;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# SIDEBAR
+# NAVIGATION (CORRIGÉE)
 # ==========================================
 with st.sidebar:
     page = st.radio(
         "Navigation",
         ["Accueil", "La Carte", "Panier", "Admin"],
-        index=["Accueil", "La Carte", "Panier", "Admin"].index(st.session_state.page)
+        key="navigation"
     )
-    st.session_state.page = page
 
 # ==========================================
-# ACCUEIL PREMIUM
+# ACCUEIL
 # ==========================================
 if page == "Accueil":
 
@@ -137,7 +126,7 @@ if page == "Accueil":
     """, unsafe_allow_html=True)
 
     if st.button("🍽️ Commander Maintenant", use_container_width=True):
-        st.session_state.page = "La Carte"
+        st.session_state.navigation = "La Carte"
         st.rerun()
 
     st.divider()
@@ -157,7 +146,6 @@ if page == "Accueil":
         st.write("Installez-vous et profitez d’un service professionnel.")
 
     st.divider()
-
     st.subheader("📍 Informations")
     st.write("📌 Mboro, Sénégal")
     st.write("🕒 Ouvert tous les jours : 10h - 23h")
