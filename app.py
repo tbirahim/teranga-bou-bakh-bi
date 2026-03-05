@@ -2,222 +2,196 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import urllib.parse
-from contextlib import contextmanager
-from datetime import datetime
-import base64
 
 # ==========================================
-# CONFIGURATION & DESIGN
+# CONFIGURATION & ETAT DE SESSION
 # ==========================================
 st.set_page_config(page_title="Teranga Gourmet", page_icon="🍽️", layout="wide")
 
-NUMERO_WHATSAPP = "221778615900"
-
-# Fonction pour l'alerte sonore
-def play_notification():
-    audio_file = "https://www.soundjay.com"
-    st.markdown(f'<audio src="{audio_file}" autoplay></audio>', unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-    .stApp { background-color: #050505; color: #e0e0e0; }
-    .hero-container {
-        background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), 
-                    url('https://images.unsplash.com');
-        background-size: cover; padding: 80px 20px; text-align: center; border-radius: 20px; border: 1px solid #d4af37;
-    }
-    .product-card {
-        background: #121212; border-radius: 15px; border: 1px solid #222; margin-bottom: 15px;
-    }
-    .price-tag { color: #d4af37; font-weight: bold; font-size: 22px; }
-    div.stButton > button { background: #d4af37 !important; color: black !important; font-weight: bold; }
-</style>
-""", unsafe_allow_html=True)
+# Initialisation des états pour éviter les retours à l'accueil
+if "page" not in st.session_state:
+    st.session_state.page = "🏠 Accueil"
+if "cart" not in st.session_state:
+    st.session_state.cart = {}
 
 # ==========================================
-# DATABASE
+# BASE DE DONNÉES
 # ==========================================
-@contextmanager
-def db_conn():
-    conn = sqlite3.connect("teranga_final.db", check_same_thread=False)
-    try: yield conn
-    finally: conn.close()
+def get_db():
+    conn = sqlite3.connect("teranga_v8.db", check_same_thread=False)
+    return conn
 
-def init_db():
-    with db_conn() as conn:
-        c = conn.cursor()
-        c.execute("""CREATE TABLE IF NOT EXISTS menu 
-            (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, prix REAL, img TEXT, stock INTEGER DEFAULT 10)""")
-        c.execute("""CREATE TABLE IF NOT EXISTS commandes 
-            (id INTEGER PRIMARY KEY AUTOINCREMENT, articles TEXT, total REAL, 
-             paiement TEXT, detail TEXT, statut TEXT DEFAULT 'En attente', date DATETIME)""")
-        conn.commit()
-
-init_db()
+conn = get_db()
+conn.execute("CREATE TABLE IF NOT EXISTS menu (id INTEGER PRIMARY KEY, nom TEXT, prix REAL, img TEXT, stock INTEGER)")
+conn.execute("CREATE TABLE IF NOT EXISTS commandes (id INTEGER PRIMARY KEY, articles TEXT, total REAL, detail TEXT, type TEXT, statut TEXT DEFAULT 'En attente')")
+conn.commit()
 
 # ==========================================
-# LOGIQUE PANIER
+# NAVIGATION LATERALE
 # ==========================================
-if "cart" not in st.session_state: st.session_state.cart = {}
-
-def update_cart(item_id, nom, prix, stock_dispo, action="add"):
-    item_id = str(item_id)
-    current_qty = st.session_state.cart.get(item_id, {}).get("qty", 0)
-    if action == "add":
-        if current_qty < stock_dispo:
-            if item_id in st.session_state.cart: st.session_state.cart[item_id]["qty"] += 1
-            else: st.session_state.cart[item_id] = {"nom": nom, "prix": prix, "qty": 1}
-            st.toast(f"✅ {nom} ajouté")
-    elif action == "remove":
-        if item_id in st.session_state.cart:
-            st.session_state.cart[item_id]["qty"] -= 1
-            if st.session_state.cart[item_id]["qty"] <= 0: del st.session_state.cart[item_id]
+with st.sidebar:
+    st.title("Teranga Gourmet")
+    nb_panier = sum(v['qty'] for v in st.session_state.cart.values())
+    choice = st.radio("Navigation", ["🏠 Accueil", "📋 La Carte", f"🛒 Panier ({nb_panier})", "⚙️ Admin"], 
+                      index=["🏠 Accueil", "📋 La Carte", f"🛒 Panier ({nb_panier})", "⚙️ Admin"].index(st.session_state.page) if st.session_state.page in ["🏠 Accueil", "📋 La Carte", "⚙️ Admin"] else 0)
+    st.session_state.page = choice
 
 # ==========================================
-# NAVIGATION
+# ACCUEIL PRO
 # ==========================================
-nb_items = sum(v["qty"] for v in st.session_state.cart.values())
-page = st.sidebar.selectbox("Explorer", ["🏠 Accueil", "📋 La Carte", f"🛒 Panier ({nb_items})", "🔍 Suivre ma commande", "⚙️ Admin"])
-
-# ==========================================
-# ACCUEIL
-# ==========================================
-if page == "🏠 Accueil":
-    st.markdown("""<div class="hero-container">
-        <h1 style='color:#d4af37; font-size:60px;'>TERANGA GOURMET</h1>
-        <p style='font-size:20px;'>L'art culinaire de Mboro livré chez vous.</p>
-    </div>""", unsafe_allow_html=True)
+if "Accueil" in st.session_state.page:
+    st.markdown("""
+    <div style="background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://images.unsplash.com'); 
+    background-size: cover; padding: 120px 20px; text-align: center; border-radius: 25px; color: white; border: 2px solid #d4af37;">
+        <h1 style="font-size: 60px; color: #d4af37; margin-bottom: 10px;">TERANGA GOURMET</h1>
+        <p style="font-size: 22px; font-weight: 300;">L'excellence culinaire de Mboro, de notre cuisine à votre table.</p>
+        <br>
+        <p style="color: #d4af37; font-size: 18px;">📍 Mboro - Sénégal | 🕒 11h - 23h</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
-    with col1:
-        st.info("🕒 **Horaires** : 11h00 - 23h30")
-    with col2:
-        st.success("📍 **Zone** : Mboro et environs")
+    if st.button("📖 Consulter le Menu", use_container_width=True):
+        st.session_state.page = "📋 La Carte"
+        st.rerun()
 
 # ==========================================
 # LA CARTE
 # ==========================================
-elif "Carte" in page:
-    st.title("👨‍🍳 Notre Menu")
-    with db_conn() as conn:
-        df = pd.read_sql("SELECT * FROM menu", conn)
-
-    if df.empty:
-        st.warning("Le chef prépare le menu. Revenez bientôt !")
-    else:
-        for i in range(0, len(df), 3):
-            cols = st.columns(3)
-            for j, row in df.iloc[i:i+3].iterrows():
-                with cols[j % 3]:
-                    st.markdown(f"""<div class="product-card">
-                        <img src="{row['img']}" style="width:100%; border-radius:15px 15px 0 0; height:180px; object-fit:cover;">
-                        <div style="padding:15px">
-                            <h4>{row['nom']}</h4>
-                            <p class="price-tag">{int(row['prix'])} FCFA</p>
-                            <p style="font-size:12px; color:#888;">Stock : {row['stock']}</p>
-                        </div>
-                    </div>""", unsafe_allow_html=True)
-                    if row['stock'] > 0:
-                        st.button("Ajouter", key=f"btn_{row['id']}", on_click=update_cart, args=(row["id"], row["nom"], row["prix"], row["stock"]))
-                    else:
-                        st.button("Épuisé", disabled=True, key=f"off_{row['id']}")
-
-# ==========================================
-# ADMIN : GESTION TOTALE
-# ==========================================
-elif "Admin" in page:
-    st.title("⚙️ Espace Administration")
-    pwd = st.sidebar.text_input("Mot de passe", type="password")
+elif "La Carte" in st.session_state.page:
+    st.header("📋 Notre Sélection")
+    df = pd.read_sql("SELECT * FROM menu", get_db())
     
-    if pwd == "admin123":
-        tab_cmd, tab_menu = st.tabs(["📋 Commandes & Alertes", "🍱 Gestion du Menu"])
-        
-        with tab_cmd:
-            with db_conn() as conn:
-                # Alerte si nouvelle commande "En attente"
-                new_cmds = conn.execute("SELECT COUNT(*) FROM commandes WHERE statut='En attente'").fetchone()[0]
-                if new_cmds > 0:
-                    st.warning(f"🔔 {new_cmds} nouvelle(s) commande(s) !")
-                    play_notification()
-                
-                df_c = pd.read_sql("SELECT * FROM commandes ORDER BY id DESC", conn)
-                for _, row in df_c.iterrows():
-                    with st.expander(f"📦 Commande #{row['id']} - {row['statut']} ({row['total']}F)"):
-                        st.write(f"**Détail :** {row['articles']}")
-                        st.write(f"**Infos Client :** {row['detail']}")
-                        new_st = st.selectbox("Statut", ["En attente", "En préparation", "Prête", "Livrée"], index=["En attente", "En préparation", "Prête", "Livrée"].index(row['statut']), key=f"st_{row['id']}")
-                        if st.button("Actualiser Statut", key=f"up_{row['id']}"):
-                            conn.execute("UPDATE commandes SET statut=? WHERE id=?", (new_st, row['id']))
-                            conn.commit()
-                            st.rerun()
-
-        with tab_menu:
-            st.subheader("Ajouter un nouveau plat")
-            with st.form("new_dish"):
-                n = st.text_input("Nom")
-                p = st.number_input("Prix (FCFA)", min_value=0)
-                i = st.text_input("URL Image")
-                s = st.number_input("Stock Initial", min_value=0, value=10)
-                if st.form_submit_button("➕ Ajouter au menu"):
-                    with db_conn() as conn:
-                        conn.execute("INSERT INTO menu (nom, prix, img, stock) VALUES (?,?,?,?)", (n,p,i,s))
-                        conn.commit()
-                    st.success("Plat ajouté !")
-                    st.rerun()
-
-            st.divider()
-            st.subheader("Modifier / Supprimer des plats")
-            with db_conn() as conn:
-                df_m = pd.read_sql("SELECT * FROM menu", conn)
-                for _, row in df_m.iterrows():
-                    col1, col2, col3, col4 = st.columns([2,1,1,1])
-                    col1.write(f"**{row['nom']}**")
-                    col2.write(f"{int(row['prix'])}F")
-                    if col3.button("🗑️ Supprimer", key=f"del_m_{row['id']}"):
-                        with db_conn() as conn:
-                            conn.execute("DELETE FROM menu WHERE id=?", (row['id'],))
-                            conn.commit()
-                        st.rerun()
-                    # Possibilité d'ajuster le stock rapidement
-                    new_stock = col4.number_input("Stock", value=row['stock'], key=f"stock_{row['id']}")
-                    if new_stock != row['stock']:
-                        with db_conn() as conn:
-                            conn.execute("UPDATE menu SET stock=? WHERE id=?", (new_stock, row['id']))
-                            conn.commit()
+    if df.empty:
+        st.info("Le menu est en cours de mise à jour.")
     else:
-        st.error("Mot de passe incorrect")
+        cols = st.columns(3)
+        for idx, row in df.iterrows():
+            with cols[idx % 3]:
+                st.markdown(f"""
+                <div style="border: 1px solid #333; border-radius: 15px; padding: 10px; background: #111; margin-bottom: 10px;">
+                    <img src="{row['img']}" style="width:100%; border-radius:10px; height:200px; object-fit:cover;">
+                    <h3 style="color:#d4af37; margin-top:10px;">{row['nom']}</h3>
+                    <p style="font-size:20px; font-weight:bold;">{int(row['prix'])} FCFA</p>
+                    <p style="color:#888; font-size:12px;">Stock disponible : {row['stock']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if row['stock'] > 0:
+                    if st.button(f"Ajouter au panier", key=f"btn_{row['id']}", use_container_width=True):
+                        pid = str(row['id'])
+                        if pid in st.session_state.cart:
+                            st.session_state.cart[pid]['qty'] += 1
+                        else:
+                            st.session_state.cart[pid] = {'nom': row['nom'], 'prix': row['prix'], 'qty': 1}
+                        st.toast(f"✅ {row['nom']} ajouté !")
+                else:
+                    st.button("Épuisé", disabled=True, key=f"sold_{row['id']}", use_container_width=True)
 
-# (Le reste du code pour Panier et Suivi reste identique à la version précédente)
-elif "Panier" in page:
-    st.title("🛒 Votre Panier")
-    if not st.session_state.cart: st.info("Vide")
+# ==========================================
+# PANIER AVEC TUNNEL DE COMMANDE STRICT
+# ==========================================
+elif "Panier" in st.session_state.page:
+    st.header("🛒 Finaliser ma commande")
+    
+    if not st.session_state.cart:
+        st.warning("Votre panier est vide.")
+        if st.button("Retour au menu"):
+            st.session_state.page = "📋 La Carte"
+            st.rerun()
     else:
         total = 0
-        summary = ""
+        txt_items = ""
         for k, v in list(st.session_state.cart.items()):
-            total += v["prix"] * v["qty"]
-            summary += f"{v['nom']} (x{v['qty']}) "
-            st.write(f"**{v['nom']}** x{v['qty']} - {int(v['prix']*v['qty'])} F")
+            sub = v['prix'] * v['qty']
+            total += sub
+            txt_items += f"• {v['nom']} (x{v['qty']})\n"
+            c1, c2, c3 = st.columns([3, 1, 1])
+            c1.write(f"**{v['nom']}**")
+            c2.write(f"{int(sub)} F")
+            if c3.button("🗑️", key=f"del_{k}"):
+                del st.session_state.cart[k]
+                st.rerun()
         
-        st.subheader(f"Total : {int(total)} FCFA")
-        infos = st.text_area("Adresse ou Table")
-        if st.button("🚀 Commander"):
-            with db_conn() as conn:
-                cursor = conn.cursor()
-                cursor.execute("INSERT INTO commandes (articles, total, paiement, detail, date) VALUES (?,?,'Espèces',?,?)", (summary, total, infos, datetime.now()))
-                oid = cursor.lastrowid
-                for k, v in st.session_state.cart.items():
-                    conn.execute("UPDATE menu SET stock = stock - ? WHERE id = ?", (v['qty'], k))
-                conn.commit()
-            st.success(f"Commande N°{oid} reçue !")
-            st.session_state.cart = {}
-            st.markdown(f'<a href="https://wa.me{NUMERO_WHATSAPP}?text=Commande {oid}: {summary}" target="_blank">WhatsApp</a>', unsafe_allow_html=True)
+        st.divider()
+        st.subheader(f"Total à payer : {int(total)} FCFA")
 
-elif "Suivre" in page:
-    st.title("🔍 Suivi")
-    cid = st.number_input("N° Commande", min_value=1)
-    if st.button("Chercher"):
-        with db_conn() as conn:
-            r = conn.execute("SELECT statut FROM commandes WHERE id=?", (cid,)).fetchone()
-            if r: st.info(f"Statut actuel : **{r[0]}**")
-            else: st.error("Inconnu")
+        # CHOIX DU MODE
+        mode = st.radio("📍 Mode de service :", ["🚚 Livraison à domicile", "🏪 Sur place (Restaurant)"], horizontal=True)
+        
+        details = ""
+        ready_to_order = False
+
+        if "Livraison" in mode:
+            col_tel, col_adr = st.columns(2)
+            tel = col_tel.text_input("📞 Numéro de téléphone (Obligatoire)")
+            adr = col_adr.text_input("📍 Adresse de livraison (Quartier/Rue)")
+            if tel and adr:
+                details = f"LIVRAISON\n📞 Tel: {tel}\n📍 Adr: {adr}"
+                ready_to_order = True
+        else:
+            num_table = st.text_input("🔢 Numéro de votre table")
+            if num_table:
+                details = f"SUR PLACE\n🔢 Table N°: {num_table}"
+                ready_to_order = True
+
+        st.divider()
+        
+        # LE BOUTON UNIQUE DE VALIDATION
+        if ready_to_order:
+            # On prépare le message WhatsApp
+            msg_wa = f"NOUVELLE COMMANDE TERANGA\n\n{txt_items}\n💰 TOTAL : {int(total)} FCFA\n\n{details}"
+            encoded_msg = urllib.parse.quote(msg_wa)
+            url_whatsapp = f"https://wa.me{encoded_msg}"
+
+            # Lien stylisé en bouton qui déclenche aussi l'enregistrement en DB
+            if st.button("🚀 CONFIRMER & ENVOYER SUR WHATSAPP", use_container_width=True):
+                # 1. Enregistrement Base de données
+                db = get_db()
+                db.execute("INSERT INTO commandes (articles, total, detail, type) VALUES (?,?,?,?)",
+                           (txt_items, total, details, mode))
+                db.commit()
+                
+                # 2. Vider le panier
+                st.session_state.cart = {}
+                
+                # 3. Ouvrir WhatsApp (via JavaScript)
+                st.markdown(f'<meta http-equiv="refresh" content="0; url={url_whatsapp}">', unsafe_allow_html=True)
+                st.success("Commande envoyée ! Redirection vers WhatsApp...")
+        else:
+            st.warning("⚠️ Veuillez remplir vos coordonnées pour débloquer la commande.")
+
+# ==========================================
+# ADMIN
+# ==========================================
+elif "Admin" in st.session_state.page:
+    pwd = st.sidebar.text_input("Code Secret", type="password")
+    if pwd == "admin123":
+        t1, t2 = st.tabs(["📦 Commandes", "🥘 Menu & Stocks"])
+        with t1:
+            df_orders = pd.read_sql("SELECT * FROM commandes ORDER BY id DESC", get_db())
+            st.dataframe(df_orders, use_container_width=True)
+        with t2:
+            with st.expander("➕ Ajouter un nouveau plat"):
+                n = st.text_input("Nom du plat")
+                p = st.number_input("Prix", min_value=0)
+                i = st.text_input("URL de l'image")
+                s = st.number_input("Stock", min_value=0, value=20)
+                if st.button("Sauvegarder"):
+                    db = get_db()
+                    db.execute("INSERT INTO menu (nom, prix, img, stock) VALUES (?,?,?,?)", (n, p, i, s))
+                    db.commit()
+                    st.success("Plat ajouté !")
+                    st.rerun()
+            
+            st.subheader("Plats actuels")
+            df_menu = pd.read_sql("SELECT * FROM menu", get_db())
+            for idx, r in df_menu.iterrows():
+                c1, c2, c3 = st.columns([3, 1, 1])
+                c1.write(f"**{r['nom']}** ({int(r['prix'])}F)")
+                if c2.button("Supprimer", key=f"del_menu_{r['id']}"):
+                    db = get_db()
+                    db.execute("DELETE FROM menu WHERE id=?", (r['id'],))
+                    db.commit()
+                    st.rerun()
+    else:
+        st.error("Accès Admin requis.")
