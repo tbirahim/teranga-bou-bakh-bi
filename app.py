@@ -74,7 +74,7 @@ st.markdown("""
 # ------------------------------
 def afficher_logo():
     try:
-        # Utilisez un chemin valide ou stockez l'image en ligne
+        # Assurez-vous que le fichier s'appelle exactement "logo.png" à la racine
         st.image("logo.png", width=120, use_container_width=False)
     except FileNotFoundError:
         st.markdown("""
@@ -132,7 +132,6 @@ service_card(cols[2], "☁️", "Transformation Cloud", "Sécurisez vos données
 st.divider()
 st.subheader("🧮 Calculez vos gains de productivité")
 
-# Initialisation session state pour éviter les recalculs inutiles
 if "nb_taches" not in st.session_state:
     st.session_state.nb_taches = 20
 
