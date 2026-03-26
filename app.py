@@ -1,6 +1,8 @@
 import streamlit as st
-from datetime import datetime
 import re
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # ------------------------------
 # 1. Configuration de la page
@@ -70,15 +72,15 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------------
-# 3. Gestion de l'image du logo (sécurisée)
+# 3. Gestion du logo (taille augmentée)
 # ------------------------------
 def afficher_logo():
     try:
-        # Assurez-vous que le fichier s'appelle exactement "logo.png" à la racine
-        st.image("logo.png", width=120, use_container_width=False)
+        # Taille augmentée à 150 pixels
+        st.image("logo.png", width=150, use_container_width=False)
     except FileNotFoundError:
         st.markdown("""
-            <div style="background:#f8f9fa; padding:1rem; border-radius:1rem; text-align:center; width:120px;">
+            <div style="background:#f8f9fa; padding:1rem; border-radius:1rem; text-align:center; width:150px;">
                 🌳 <strong>Baobab</strong>
             </div>
         """, unsafe_allow_html=True)
@@ -153,7 +155,7 @@ st.metric(
 )
 
 # ------------------------------
-# 8. Formulaire de contact avec validation
+# 8. Formulaire de contact avec envoi d'email
 # ------------------------------
 st.divider()
 st.markdown("## 📩 Prêt à franchir le pas ?")
@@ -186,10 +188,42 @@ with st.form("contact_form", clear_on_submit=True):
             for err in erreurs:
                 st.error(err)
         else:
-            # Ici, vous pourriez envoyer les données par email, API, ou stockage
-            st.success(f"✅ Merci {entreprise} ! Notre équipe vous recontactera sous 24h à {email}.")
-            # Exemple : st.session_state['form_data'] = {...}
-            # Pour un vrai envoi, intégrer une fonction avec SMTP ou webhook
+            # Envoi de l'email
+            try:
+                # Récupération des secrets
+                sender = st.secrets["email"]["sender"]
+                password = st.secrets["email"]["password"]
+                recipient = st.secrets["email"]["recipient"]  # gayethiernobirahim3@gmail.com
+                smtp_server = st.secrets["email"]["smtp_server"]
+                smtp_port = st.secrets["email"]["smtp_port"]
+
+                # Construction du message
+                msg = MIMEMultipart()
+                msg["From"] = sender
+                msg["To"] = recipient
+                msg["Subject"] = f"Baobab High Tech - Nouvelle demande de {entreprise}"
+
+                body = f"""
+Nouvelle demande de contact reçue via le site Baobab High Tech :
+
+Entreprise : {entreprise}
+Email : {email}
+Besoin : {besoin}
+
+Le client a accepté d'être recontacté.
+                """
+                msg.attach(MIMEText(body, "plain"))
+
+                # Connexion et envoi
+                with smtplib.SMTP(smtp_server, smtp_port) as server:
+                    server.starttls()
+                    server.login(sender, password)
+                    server.send_message(msg)
+
+                st.success(f"✅ Merci {entreprise} ! Notre équipe vous recontactera sous 24h à {email}.")
+            
+            except Exception as e:
+                st.error(f"Erreur technique : {e}. Veuillez nous contacter directement ou réessayer plus tard.")
 
 # ------------------------------
 # 9. Pied de page
