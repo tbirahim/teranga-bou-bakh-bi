@@ -763,8 +763,8 @@ Envoyé depuis le site Baobab High Tech
 with info_col:
     infos = [
         ("📍", "Localisation", "Dakar, Sénégal<br>Plateau · Almadies"),
-        ("📞", "Téléphone", "+221 78 123 45 67"),
-        ("✉️", "Email", "contact@baobabht.sn"),
+        ("📞", "Téléphone", "+221 77 861 59 00"),
+        ("✉️", "Email", "    thiernogaye2005@gmail.com"),
         ("🕐", "Disponibilité", "Lun–Ven · 8h–18h GMT"),
     ]
     for icon, label, value in infos:
@@ -794,8 +794,8 @@ st.markdown("""
     <hr class="footer-divider">
     <div class="footer-bottom">
         <div style="display:flex;gap:2rem;flex-wrap:wrap;">
-            <span class="footer-contact-item">📞 +221 78 123 45 67</span>
-            <span class="footer-contact-item">✉️ contact@baobabht.sn</span>
+            <span class="footer-contact-item">📞 +221 77 861 59 00</span>
+            <span class="footer-contact-item">✉️ thiernogaye2005@gmail.com</span>
             <span class="footer-contact-item">📍 Dakar, Sénégal</span>
         </div>
         <span class="footer-copyright">© 2026 Baobab High Tech — Tous droits réservés</span>
